@@ -4,13 +4,15 @@ import time
 import argparse
 import numpy as np
 import librosa
-from fhvae.datasets.audio_utils import *
+from ...fhvae.datasets.audio_utils import *
+
 
 def _maybe_makedir(d):
     try:
         os.makedirs(d)
     except OSError:
         pass
+
 
 def main(wav_scp, np_dir, feat_scp, len_scp, reader, mapper):
     np_dir = os.path.abspath(np_dir)
@@ -42,7 +44,8 @@ def main(wav_scp, np_dir, feat_scp, len_scp, reader, mapper):
             if (i + 1) % 1000 == 0:
                 print("%s files, %.fs" % (i+1, time.time() - stime))
 
-    print "processed total %s audio files; time elapsed = %.fs" % (i + 1, time.time() - stime)
+    print ("processed total %s audio files; time elapsed = %.fs" % (i + 1, time.time() - stime))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -50,7 +53,7 @@ if __name__ == "__main__":
     parser.add_argument("np_dir", type=str, help="output directory for numpy matrices")
     parser.add_argument("feat_scp", type=str, help="output feats.scp file")
     parser.add_argument("len_scp", type=str, help="output len.scp file")
-    parser.add_argument("--ftype", type=str, default="fbank", choices=["fbank", "spec"], 
+    parser.add_argument("--ftype", type=str, default="fbank", choices=["fbank", "spec", "taco_mel"],
             help="feature type to compute")
     parser.add_argument("--sr", type=int, default=None,
             help="resample raw audio to specified value if not None")
@@ -61,14 +64,19 @@ if __name__ == "__main__":
     parser.add_argument("--n_mels", type=int, default=80, 
             help="number of filter banks if choosing fbank")
     args = parser.parse_args()
-    print args
+    print(args)
     
     reader = lambda path: librosa.load(path, args.sr, mono=True)
+    sr = 16000
+    taco_stft = TacotronSTFT(int(args.win_t * sr), int(args.hop_t * sr), int(args.win_t * sr),
+                             args.n_mels, sr, 0.0, 8000.0)
     if args.ftype == "fbank":
         mapper = lambda y, sr: np.transpose(to_melspec(
                 y, sr, int(sr * args.win_t), args.hop_t, args.win_t, n_mels=args.n_mels))
     elif args.ftype == "spec":
         mapper = lambda y, sr: np.transpose(rstft(
                 y, sr, int(sr * args.win_t), args.hop_t, args.win_t))
+    elif args.ftype == "taco_mel":
+        mapper = lambda y, sr: taco_stft.mel_spectrogram(y)
 
     main(args.wav_scp, args.np_dir, args.feat_scp, args.len_scp, reader, mapper)
