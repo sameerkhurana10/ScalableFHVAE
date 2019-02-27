@@ -1,6 +1,7 @@
 import numpy as np
-from seq_dataset import *
+from .seq_dataset import *
 from collections import defaultdict
+
 
 class Segment(object):
     def __init__(self, seq, start, end, lab, talab):
@@ -16,6 +17,7 @@ class Segment(object):
 
     def __repr__(self):
         return str(self)
+
 
 def make_segs(seqs, lens, labs, talabs, seg_len, seg_shift, rand_seg):
     """
@@ -34,7 +36,7 @@ def make_segs(seqs, lens, labs, talabs, seg_len, seg_shift, rand_seg):
         nseg = (l - seg_len) // seg_shift + 1
         nsegs.append(nseg)
         if rand_seg:
-            starts = np.random.choice(xrange(l - seg_len + 1), nseg)
+            starts = np.random.choice(range(l - seg_len + 1), nseg)
         else:
             starts = np.arange(nseg) * seg_shift
         for start in starts:
@@ -63,6 +65,26 @@ class SegmentDataset(object):
         self.lens = self.seq_d.lens
         self.labs_d = self.seq_d.labs_d
         self.talabseqs_d = self.seq_d.talabseqs_d
+        self.size = self.get_size()
+
+    def get_size(self):
+        lab_names = []
+        talab_names = []
+        seqs = None
+
+        seq_shuffle = False
+        seq_rem = False
+        seq_mapper = None
+        seq_iterator = self.seq_iterator(100, lab_names, talab_names,
+                                         seqs, seq_shuffle, seq_rem, seq_mapper)
+
+        ds_size = 0
+        for seq_keys, seq_feats, seq_lens, seq_labs, seq_talabs in seq_iterator:
+            segs, seq_nsegs = make_segs(seq_keys, seq_lens, seq_labs, seq_talabs,
+                                        self.seg_len, self.seg_shift, self.rand_seg)
+            ds_size += sum(seq_nsegs)
+
+        return ds_size
     
     def seq_iterator(self, bs, lab_names=[], talab_names=[], seqs=None,
             shuffle=False, rem=True, mapper=None):

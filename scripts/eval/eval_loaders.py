@@ -1,13 +1,13 @@
 import sys
 import numpy as np
-from fhvae.datasets.seg_dataset import KaldiSegmentDataset, NumpySegmentDataset
+from ...fhvae.datasets.seg_dataset import KaldiSegmentDataset, NumpySegmentDataset
 
 np.random.seed(123)
 
-def load_data(name, set_name, is_numpy, seqlist_path):
-    root = "./datasets/%s" % name
+
+def load_data(name, set_name, seqlist_path, seg_len, batch_size, is_numpy=True):
+    root = "./data/%s" % name
     mvn_path = "%s/train/mvn.pkl" % root
-    seg_len = 20
     Dataset = NumpySegmentDataset if is_numpy else KaldiSegmentDataset
     
     dt_dset = Dataset(
@@ -22,29 +22,31 @@ def load_data(name, set_name, is_numpy, seqlist_path):
         dt_seqs, dt_seq2lab_d = _load_seqlist(seqlist_path)
         assert(bool(dt_seqs))
 
-    dt_iterator, dt_iterator_by_seqs, dt_seqs = _load(dt_dset, dt_seqs)
+    dt_iterator, dt_iterator_by_seqs, dt_seqs = _load(dt_dset, dt_seqs, batch_size)
     return dt_iterator, dt_iterator_by_seqs, dt_seqs, dt_seq2lab_d
 
-def _load(dt_dset, dt_seqs):
+
+def _load(dt_dset, dt_seqs, batch_size):
     def _make_batch(seqs, feats, nsegs, seq2idx):
-        x = feats
+        x = np.asarray(feats)
         y = np.asarray([seq2idx[seq] for seq in seqs])
         n = np.asarray(nsegs)
         return x, y, n
    
-    def dt_iterator(bs=2048):
+    def dt_iterator(bs=batch_size):
         seq2idx = dict([(seq, i) for i, seq in enumerate(dt_dset.seqlist)])
         _iterator = dt_dset.iterator(bs, seg_shuffle=False, seg_rem=True)
         for seqs, feats, nsegs, _, _ in _iterator:
             yield _make_batch(seqs, feats, nsegs, seq2idx)
 
-    def dt_iterator_by_seqs(s_seqs, bs=2048):
+    def dt_iterator_by_seqs(s_seqs, bs=batch_size):
         seq2idx = dict([(seq, i) for i, seq in enumerate(s_seqs)])
         _iterator = dt_dset.iterator(bs, seg_shuffle=False, seg_rem=True, seqs=s_seqs)
         for seqs, feats, nsegs, _, _ in _iterator:
             yield _make_batch(seqs, feats, nsegs, seq2idx)
 
     return dt_iterator, dt_iterator_by_seqs, dt_seqs
+
 
 def _load_seqlist(seqlist_path):
     """

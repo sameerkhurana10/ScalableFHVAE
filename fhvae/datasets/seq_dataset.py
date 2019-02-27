@@ -1,11 +1,9 @@
 import os
 import numpy as np
 import bisect
-import cPickle
+import pickle
 import librosa
 from collections import OrderedDict
-from kaldi_io import SequentialBaseFloatMatrixReader as SBFMReader
-from kaldi_io import RandomAccessBaseFloatMatrixReader as RABFMReader
 from .audio_utils import *
 
 def scp2dict(path, dtype=str, seqlist=None):
@@ -92,16 +90,16 @@ class TimeAlignedLabelSeq(object):
         talabs = sorted(talabs, key=lambda x: x.start)
         if noov and nosp:
             assert(talabs[0].start == 0)
-            for i in xrange(len(talabs) - 1):
+            for i in range(len(talabs) - 1):
                 if talabs[i].stop != talabs[i+1].start:
                     raise ValueError(talabs[i], talabs[i+1])
         elif noov:
-            for i in xrange(len(talabs) - 1):
+            for i in range(len(talabs) - 1):
                 if talabs[i].stop > talabs[i+1].start:
                     raise ValueError(talabs[i], talabs[i+1])
         elif nosp:
             assert(talabs[0].start == 0)
-            for i in xrange(len(talabs) - 1):
+            for i in range(len(talabs) - 1):
                 if talabs[i].stop < talabs[i+1].start:
                     raise ValueError(talabs[i], talabs[i+1])
         
@@ -285,10 +283,10 @@ class KaldiDataset(SequenceDataset):
             if not os.path.exists(mvn_path):
                 self.mvn_params = self.compute_mvn()
                 with open(mvn_path, "wb") as f:
-                    cPickle.dump(self.mvn_params, f)
+                    pickle.dump(self.mvn_params, f)
             else:
                 with open(mvn_path) as f:
-                    self.mvn_params = cPickle.load(f)
+                    self.mvn_params = pickle.load(f)
         else:
             self.mvn_params = None
 
@@ -339,7 +337,7 @@ class NumpyDataset(SequenceDataset):
                 with open(self.feats[seq]) as f:
                     feats[seq] = np.load(f)
             self.feats = feats
-            print "preloaded features"
+            print ("preloaded features")
         else:
             self.feats = self.feat_getter(self.feats)
 
@@ -347,10 +345,10 @@ class NumpyDataset(SequenceDataset):
             if not os.path.exists(mvn_path):
                 self.mvn_params = self.compute_mvn()
                 with open(mvn_path, "wb") as f:
-                    cPickle.dump(self.mvn_params, f)
+                    pickle.dump(self.mvn_params, f)
             else:
-                with open(mvn_path) as f:
-                    self.mvn_params = cPickle.load(f)
+                with open(mvn_path, "rb") as f:
+                    self.mvn_params = pickle.load(f)
         else:
             self.mvn_params = None
 
@@ -359,8 +357,8 @@ class NumpyDataset(SequenceDataset):
             self.feats = dict(feats)
             
         def __getitem__(self, seq):
-            with open(self.feats[seq]) as f:
-                feat = np.load(f)
+            # with open(self.feats[seq], "rb") as f:
+            feat = np.load(self.feats[seq])
             return feat
 
     def compute_mvn(self):
