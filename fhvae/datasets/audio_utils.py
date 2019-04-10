@@ -7,8 +7,11 @@ from scipy.signal import get_window
 import scipy
 
 
-def stft(y, sr, n_fft=400, hop_t=0.010, win_t=0.025, window="hamming", 
-        preemphasis=0.97):
+_LOG_EPS = 1e-6
+
+
+def stft(y, sr, n_fft=400, hop_t=0.010, win_t=0.025, window="hamming",
+         preemphasis=0.97):
     """
     Short time Fourier Transform
     Args:
@@ -72,10 +75,10 @@ def to_melspec(y, sr, n_fft=400, hop_t=0.010, win_t=0.025, window="hamming",
     """
     spec = rstft(y, sr, n_fft, hop_t, win_t, window, preemphasis, log=False)
     hop_length = int(sr * hop_t)
-    melspec = librosa.feature.melspectrogram(sr=sr, S=spec, n_fft=n_fft, 
-            hop_length=hop_length, n_mels=n_mels, norm=norm_mel)
+    melspec = librosa.feature.melspectrogram(sr=sr, S=spec, n_fft=n_fft,
+                                             hop_length=hop_length, n_mels=n_mels, norm=norm_mel)
     if log:
-        melspec = np.log(melspec)
+        melspec = np.log(melspec+1e-6)
         melspec[melspec < log_floor] = log_floor
     return melspec
 

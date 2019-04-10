@@ -37,7 +37,7 @@ def load_talab(spec, seqlist=None):
     name, nclass, path = spec
     with open(path) as f:
         toks_l = [line.rstrip().split() for line in f]
-    assert(len(toks_l) > 0 and len(toks_l[0]) == 1)
+    assert (len(toks_l) > 0 and len(toks_l[0]) == 1)
     seq2talabseq = OrderedDict()
     seq = toks_l[0][0]
     talabs = []
@@ -59,8 +59,9 @@ class TimeAlignedLabel(object):
     """
     time-aligned label
     """
+
     def __init__(self, lab, start, stop):
-        assert(start >= 0)
+        assert (start >= 0)
         self.lab = lab
         self.start = start
         self.stop = stop
@@ -74,7 +75,7 @@ class TimeAlignedLabel(object):
     @property
     def center(self):
         return (self.start + self.stop) / 2
-    
+
     def __len__(self):
         return self.stop - self.start
 
@@ -88,6 +89,7 @@ class TimeAlignedLabelSeq(object):
     """
     time-aligned labels for one sequence
     """
+
     def __init__(self, talabs, noov=True, nosp=False):
         """
         talabs(list): list of TimeAlignedLabel
@@ -96,20 +98,20 @@ class TimeAlignedLabelSeq(object):
         """
         talabs = sorted(talabs, key=lambda x: x.start)
         if noov and nosp:
-            assert(talabs[0].start == 0)
+            assert (talabs[0].start == 0)
             for i in range(len(talabs) - 1):
-                if talabs[i].stop != talabs[i+1].start:
-                    raise ValueError(talabs[i], talabs[i+1])
+                if talabs[i].stop != talabs[i + 1].start:
+                    raise ValueError(talabs[i], talabs[i + 1])
         elif noov:
             for i in range(len(talabs) - 1):
-                if talabs[i].stop > talabs[i+1].start:
-                    raise ValueError(talabs[i], talabs[i+1])
+                if talabs[i].stop > talabs[i + 1].start:
+                    raise ValueError(talabs[i], talabs[i + 1])
         elif nosp:
-            assert(talabs[0].start == 0)
+            assert (talabs[0].start == 0)
             for i in range(len(talabs) - 1):
-                if talabs[i].stop < talabs[i+1].start:
-                    raise ValueError(talabs[i], talabs[i+1])
-        
+                if talabs[i].stop < talabs[i + 1].start:
+                    raise ValueError(talabs[i], talabs[i + 1])
+
         self.talabs = talabs
         self.noov = noov
         self.nosp = nosp
@@ -146,34 +148,36 @@ class TimeAlignedLabelSeq(object):
             msg = "spacing detected at %s; " % center
             msg += "neigbors: %s, %s" % (self.talabs[idx_l], self.talabs[idx_r])
             raise ValueError(msg)
-    
+
     @property
     def lablist(self):
         if not hasattr(self, "_lablist"):
             self._lablist = sorted(np.unique([l.lab for l in self.talabs]))
         return self._lablist
 
+
 class TimeAlignedLabelSeqs(object):
     """
     time-aligned label sequences(TimeAlignedLabelSeq) for a set of sequences
     """
+
     def __init__(self, name, nclass, seq2talabseq):
         self.name = name
         self.nclass = nclass
         self.seq2talabseq = seq2talabseq
-    
+
     def __getitem__(self, seq):
         return self.seq2talabseq[seq]
 
     def __str__(self):
         return "name=%s, nclass=%s, nseqs=%s" % (
-                self.name, self.nclass, len(self.seq2talabseq))
+            self.name, self.nclass, len(self.seq2talabseq))
 
     @property
     def lablist(self):
         if not hasattr(self, "_lablist"):
             labs = np.concatenate(
-                    [talabseq.lablist for talabseq in self.seq2talabseq.values()])
+                [talabseq.lablist for talabseq in self.seq2talabseq.values()])
             self._lablist = sorted(np.unique(labs))
         return self._lablist
 
@@ -182,6 +186,7 @@ class Labels(object):
     """
     labels(int) for a set of sequences
     """
+
     def __init__(self, name, nclass, seq2lab):
         self.name = name
         self.nclass = nclass
@@ -198,26 +203,28 @@ class Labels(object):
 
 
 class SequenceDataset(object):
-    def __init__(self, feat_scp, len_scp, lab_specs=[], talab_specs=[], min_len=1):
+    def __init__(self, in_feat_scp, out_feats_scp, len_scp, lab_specs=[], talab_specs=[], min_len=1):
         """
         Args:
             feat_scp(str): feature scp path
             len_scp(str): sequence-length scp path
-            lab_specs(list): list of label specifications. each is 
+            lab_specs(list): list of label specifications. each is
                 (name, number of classes, scp path)
             talab_specs(list): list of time-aligned label specifications.
                 each is (name, number of classes, ali path)
             min_len(int): keep sequence no shorter than min_len
         """
-        feats = scp2dict(feat_scp)
-        lens = scp2dict(len_scp, int, feats.keys())
+        in_feats = scp2dict(in_feat_scp)
+        out_feats = scp2dict(out_feats_scp)
+        lens = scp2dict(len_scp, int, in_feats.keys())
 
-        self.seqlist = [k for k in feats.keys() if lens[k] >= min_len]
-        self.feats = OrderedDict([(k, feats[k]) for k in self.seqlist])
+        self.seqlist = [k for k in in_feats.keys() if lens[k] >= min_len]
+        self.in_feats = OrderedDict([(k, in_feats[k]) for k in self.seqlist])
+        self.out_feats = OrderedDict([(k, out_feats[k]) for k in self.seqlist])
         self.lens = OrderedDict([(k, lens[k]) for k in self.seqlist])
         print("%s: %s out of %s kept, min_len = %d" % (
-            self.__class__.__name__, len(self.feats), len(feats), min_len))
-        
+            self.__class__.__name__, len(self.in_feats), len(in_feats), min_len))
+
         self.labs_d = OrderedDict()
         for lab_spec in lab_specs:
             name, nclass, seq2lab = load_lab(lab_spec, self.seqlist)
@@ -227,8 +234,8 @@ class SequenceDataset(object):
             name, nclass, seq2talabs = load_talab(talab_spec, self.seqlist)
             self.talabseqs_d[name] = TimeAlignedLabelSeqs(name, nclass, seq2talabs)
 
-    def iterator(self, bs, lab_names=[], talab_names=[], seqs=None, 
-            shuffle=False, rem=True, mapper=None):
+    def iterator(self, bs, lab_names=[], talab_names=[], seqs=None,
+                 shuffle=False, rem=True, mapper=None):
         """
         Args:
             bs(int): batch size
@@ -250,18 +257,19 @@ class SequenceDataset(object):
         if shuffle:
             np.random.shuffle(seqs)
 
-        keys, feats, lens, labs, talabs = [], [], [], [], []
+        keys, in_feats, out_feats, lens, labs, talabs = [], [], [], [], [], []
         for seq in seqs:
             keys.append(seq)
-            feats.append(mapper(self.feats[seq]))
+            in_feats.append(mapper(self.in_feats[seq]))
+            out_feats.append(mapper(self.out_feats[seq]))
             lens.append(self.lens[seq])
             labs.append([self.labs_d[name][seq] for name in lab_names])
             talabs.append([self.talabseqs_d[name][seq] for name in talab_names])
             if len(keys) == bs:
-                yield keys, feats, lens, labs, talabs
+                yield keys, in_feats, out_feats, lens, labs, talabs
                 keys, feats, lens, labs, talabs = [], [], [], [], []
         if rem and bool(keys):
-            yield keys, feats, lens, labs, talabs
+            yield keys, in_feats, out_feats, lens, labs, talabs
 
     def seqs_of_lab(self, lab_name, lab):
         return [seq for seq in self.seqlist if self.labs_d[lab_name][seq] == lab]
@@ -276,13 +284,13 @@ class SequenceDataset(object):
 
 class KaldiDataset(SequenceDataset):
     def __init__(self, feat_scp, len_scp, lab_specs=[], talab_specs=[],
-            min_len=1, preload=False, mvn_path=None):
+                 min_len=1, preload=False, mvn_path=None):
         """
         Args:
             preload(bool): preload all features into memory if true
         """
         super(KaldiDataset, self).__init__(
-                feat_scp, len_scp, lab_specs, talab_specs, min_len)
+            feat_scp, len_scp, lab_specs, talab_specs, min_len)
 
         self.feats = self.feat_getter(self.feats)
 
@@ -293,6 +301,7 @@ class KaldiDataset(SequenceDataset):
                     pickle.dump(self.mvn_params, f)
             else:
                 with open(mvn_path, "rb") as f:
+                    print("exists")
                     self.mvn_params = pickle.load(f)
         else:
             self.mvn_params = None
@@ -304,7 +313,8 @@ class KaldiDataset(SequenceDataset):
         def __getitem__(self, seq):
             # with open(self.feats[seq], "rb") as f:
             # create a temp dictionary
-            feat = kaldi_io.read_mat(self.feats[seq])
+            tmp_dict = {k: v for k, v in kaldi_io.read_mat_ark(self.feats[seq].split(":")[0])}
+            feat = tmp_dict[seq]
             return feat
 
     def compute_mvn(self):
@@ -317,7 +327,7 @@ class KaldiDataset(SequenceDataset):
         mean = x / n
         std = np.sqrt(x2 / n - mean ** 2)
         return {"mean": mean, "std": std}
-    
+
     def apply_mvn(self, feats):
         if self.mvn_params is None:
             return feats
@@ -331,13 +341,13 @@ class KaldiDataset(SequenceDataset):
             return feats * self.mvn_params["std"] + self.mvn_params["mean"]
 
     def iterator(self, bs, lab_names=[], talab_names=[], seqs=None,
-            shuffle=False, rem=True, mapper=None):
+                 shuffle=False, rem=True, mapper=None):
         if mapper is None:
             new_mapper = self.apply_mvn
         else:
             new_mapper = lambda x: mapper(self.apply_mvn(x))
         return super(KaldiDataset, self).iterator(
-                bs, lab_names, talab_names, seqs, shuffle, rem, new_mapper)
+            bs, lab_names, talab_names, seqs, shuffle, rem, new_mapper)
 
     def get_shape(self):
         seq_shape = self.feats[self.seqlist[0]].shape
@@ -345,19 +355,24 @@ class KaldiDataset(SequenceDataset):
 
 
 class NumpyDataset(SequenceDataset):
-    def __init__(self, feat_scp, len_scp, lab_specs=[], talab_specs=[],
+    def __init__(self, in_feat_scp, out_feats_scp, len_scp, lab_specs=[], talab_specs=[],
                  min_len=1, preload=False, mvn_path=None):
         super(NumpyDataset, self).__init__(
-                feat_scp, len_scp, lab_specs, talab_specs, min_len)
+            in_feat_scp, out_feats_scp, len_scp, lab_specs, talab_specs, min_len)
         if preload:
-            feats = OrderedDict()
+            in_feats = OrderedDict()
+            out_feats = OrderedDict()
             for seq in self.seqlist:
-                with open(self.feats[seq]) as f:
-                    feats[seq] = np.load(f)
-            self.feats = feats
+                with open(self.in_feats[seq]) as f:
+                    in_feats[seq] = np.load(f)
+                with open(self.out_feats[seq]) as f:
+                    out_feats[seq] = np.load(f)
+            self.in_feats = in_feats
+            self.out_feats = out_feats
             print("preloaded features")
         else:
-            self.feats = self.feat_getter(self.feats)
+            self.in_feats = self.feat_getter(self.in_feats)
+            self.out_feats = self.feat_getter(self.out_feats)
 
         if mvn_path is not None:
             if not os.path.exists(mvn_path):
@@ -373,7 +388,7 @@ class NumpyDataset(SequenceDataset):
     class feat_getter:
         def __init__(self, feats):
             self.feats = dict(feats)
-            
+
         def __getitem__(self, seq):
             # with open(self.feats[seq], "rb") as f:
             feat = np.load(self.feats[seq])
@@ -389,7 +404,7 @@ class NumpyDataset(SequenceDataset):
         mean = x / n
         std = np.sqrt(x2 / n - mean ** 2)
         return {"mean": mean, "std": std}
-    
+
     def apply_mvn(self, feats):
         if self.mvn_params is None:
             return feats
@@ -403,14 +418,15 @@ class NumpyDataset(SequenceDataset):
             return feats * self.mvn_params["std"] + self.mvn_params["mean"]
 
     def iterator(self, bs, lab_names=[], talab_names=[], seqs=None,
-            shuffle=False, rem=True, mapper=None):
+                 shuffle=False, rem=True, mapper=None):
         if mapper is None:
             new_mapper = self.apply_mvn
         else:
             new_mapper = lambda x: mapper(self.apply_mvn(x))
         return super(NumpyDataset, self).iterator(
-                bs, lab_names, talab_names, seqs, shuffle, rem, new_mapper)
+            bs, lab_names, talab_names, seqs, shuffle, rem, new_mapper)
 
     def get_shape(self):
-        seq_shape = self.feats[self.seqlist[0]].shape
-        return (None,) + tuple(seq_shape[1:])
+        seq_in_shape = self.in_feats[self.seqlist[0]].shape
+        seq_out_shape = self.out_feats[self.seqlist[0]].shape
+        return (None,) + tuple(seq_in_shape[1:])

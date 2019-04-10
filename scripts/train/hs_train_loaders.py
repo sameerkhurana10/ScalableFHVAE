@@ -2,11 +2,11 @@ import sys
 import numpy as np
 from fhvae.datasets.seg_dataset import KaldiSegmentDataset, NumpySegmentDataset
 
-def load_data(name, is_numpy):
+
+def load_data(name, seg_len, seg_shift, is_numpy):
     root = "./datasets/%s" % name
     mvn_path = "%s/train/mvn.pkl" % root
-    seg_len = 20
-    seg_shift = 8
+    
     Dataset = NumpySegmentDataset if is_numpy else KaldiSegmentDataset
     
     tr_dset = Dataset(
@@ -19,6 +19,7 @@ def load_data(name, is_numpy):
             seg_len=seg_len, seg_shift=seg_len, rand_seg=False)
 
     return _load(tr_dset, dt_dset)
+
 
 def _load(tr_dset, dt_dset):
     def _make_batch(seqs, feats, nsegs, seq2idx):
